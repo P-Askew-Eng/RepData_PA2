@@ -112,3 +112,7 @@ ggplot(data=econtop10, aes(EVTYPE, value, fill=variable)) + geom_bar(stat="ident
 
 ###Summary
 So we can see that the worst impact on health is `r healthtop10[1,1]` and the worst impact on the economy is `r econtop10[1,1]`.
+
+
+
+
