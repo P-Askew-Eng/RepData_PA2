@@ -1,0 +1,7 @@
+name: Publish Document
+account: rpubs
+server: rpubs.com
+bundleId:
+        https://api.rpubs.com/api/v1/document/127783/f7c8678b62354548913c700cfff1e4f9
+url: http://rpubs.com/paskew/127783
+when: 1448032940.26944

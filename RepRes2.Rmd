@@ -62,9 +62,12 @@ storm$EVTYPE <- gsub(".*AVALANC.*", "AVALANCHE", storm$EVTYPE)
 storm$EVTYPE <- gsub(".*RAIN.*", "RAIN", storm$EVTYPE)
 storm$EVTYPE <- gsub(".*SURF.*", "SURF", storm$EVTYPE)
 storm$EVTYPE <- gsub(".*DRY.*", "DROUGHT", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*TORNADO.*", "TORNADO", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*SUMMARY.*", "UNKNOWN", storm$EVTYPE)
+storm<-storm[storm$EVTYPE!="UNKNOWN",]
 storm$EVTYPE <-as.factor(storm$EVTYPE)
 ```
-There are now there are **`r length(levels(storm$EVTYPE)) `** categories which is an improvement but still not ideal and further detaile dexamination would be required.
+There are now **`r length(levels(storm$EVTYPE)) `** categories which is an improvement but still not ideal and further detailed examination would be required, possibly requiring expert input which is beyond the scope of this exercise.
 
 
 Finally the cost of property and crop damage is reported to three significant figures with a multiplier in the next column.  So we need to look at putting these into a single column.
@@ -108,4 +111,4 @@ ggplot(data=econtop10, aes(EVTYPE, value, fill=variable)) + geom_bar(stat="ident
 ```
 
 ###Summary
-So we can see that the worst impact on health is `r healthtop10[1,1]` and the worst impact on the economy is `r econtop10[1,1]`
+So we can see that the worst impact on health is `r healthtop10[1,1]` and the worst impact on the economy is `r econtop10[1,1]`.
