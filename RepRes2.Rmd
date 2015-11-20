@@ -1,5 +1,111 @@
 ---
-title: "RepResPA2"
+title: "The Impact of Storm Damage on Health and Property in the USA"
 output: html_document
 ---
+##Synopsis
+This document explores the health and economic impacts of storm in the US up to 2011.  It uses the NOAA storm data base which logs storm events around the country and their impacts.  Helath impacts are assesssed by looking a tth etoal number of injuries and fatalities for each event type and devleoping a top 10 list.  Similarly economic impacts looks at the recorded finanical damage to property and crops to determine a ranking of the event types.
 
+This is part of the Coursera JHU Reproducible Research programme.  The data set from NOAA is large and quite untidy and requires a lot of manipulation to get to an even basic level of tidiness for anlaysis.  This report is divided into two parts, the first describing the data cleaning process and the second analysing the results and identifying the biggest impact weather events.
+
+##Data Processing
+To begin with the data needs to be imported.  it is a large dataset and requries time to load, so it is checked to see if it exists, before it is loaded, unzipped and read.  
+```{r}
+library(plyr,warn.conflicts=FALSE)
+library(dplyr,warn.conflicts=FALSE)
+library(ggplot2,warn.conflicts=FALSE)
+library(reshape2,warn.conflicts=FALSE)
+setwd("~/GitHub/RepData_PA2")
+if (!file.exists("stormdata.csv.bz2")){
+    print("Downloading File")
+    fileURL<-"https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+    download.file(fileURL,destfile="stormdata.csv.bz2")}
+if(!'StormData' %in% ls()){
+    print("Reading data from File")
+    #read.csv can read bz2 format directly
+    StormData <- read.csv('stormdata.csv.bz2')}
+StormData$year <- as.numeric(format(as.Date(StormData$BGN_DATE, format = "%m/%d/%Y %H:%M:%S"), "%Y"))
+#Only select the columns needed.
+newdata<-StormData[,c(8,23:28,38)]
+head(newdata)
+```
+The data runs from 1950 to 2011 but there is a difference in quality over the years.
+
+```{r}
+hist(newdata$year,xlab="Year",main="Histogram of Weather Events in the US",breaks=14,xlim=range(1950:2020))
+```
+
+By plotting the histogram of storm events we see that there is a distinct increase in data from 1995 onwards.  This correspoonds to an increase in the number of event types being recorded from 1996 as noted on the [NOAA website](http://www.ncdc.noaa.gov/stormevents/details.jsp) We will only take data from 1996 onwards
+```{r}
+storm <- newdata[newdata$year >= 1996, ]
+
+```
+Even though the codebook specifies only 48 event types there are **`r length(levels(storm$EVTYPE)) `** event types recorded, so we need to try and rationalise these. 
+```{r}
+storm$EVTYPE <- toupper(storm$EVTYPE)
+storm$EVTYPE <- gsub(".*HEAT.*", "HEAT", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*TSTM.*", "THUNDER STORM", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*THUNDERSTORM.*", "THUNDER STORM", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*TROPICAL STORM.*", "TROPICAL STORM", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*FLOOD.*", "FLOOD", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*WIND.*", "WIND", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*HURRICANE.*", "HURRICANE", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*SNOW.*", "SNOW", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*FLD.*", "FLOOD", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*FIRE.*", "FIRE", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*HAIL.*", "HAIL", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*BLIZZARD.*", "BLIZZARD", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*COLD.*", "COLD", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*WINTER WEATHER.*", "COLD", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*RIP.*", "RIP", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*FOG.*", "FOG", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*AVALANC.*", "AVALANCHE", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*RAIN.*", "RAIN", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*SURF.*", "SURF", storm$EVTYPE)
+storm$EVTYPE <- gsub(".*DRY.*", "DROUGHT", storm$EVTYPE)
+storm$EVTYPE <-as.factor(storm$EVTYPE)
+```
+There are now there are **`r length(levels(storm$EVTYPE)) `** categories which is an improvement but still not ideal and further detaile dexamination would be required.
+
+
+Finally the cost of property and crop damage is reported to three significant figures with a multiplier in the next column.  So we need to look at putting these into a single column.
+```{r}
+fromlist <- c('B','b','h','H','K','k','m','M','','-','?','+')
+tolist <- c(9,9,2,2,3,3,6,6,0,NA,NA,NA)
+storm$PROPDMGEXP <- sapply(mapvalues(storm$PROPDMGEXP,
+                                    from=fromlist,to=tolist),
+                          function(x) 10**as.numeric(x))
+storm$PROPDMG2 <- as.numeric(storm$PROPDMG) * storm$PROPDMGEXP/1000000
+storm$CROPDMGEXP <- sapply(mapvalues(storm$CROPDMGEXP, from=fromlist,to=tolist),
+                          function(x) 10**as.numeric(x))
+storm$CROPDMG2 <- as.numeric(storm$CROPDMG) * storm$CROPDMGEXP/1000000
+
+```
+
+##Results
+###Health Impacts
+If we take the top 10 values for health impact and plot them, we will see the main impacts on health.
+```{r}
+stormhealth<-group_by(storm,EVTYPE)
+healthsum<-stormhealth%>%summarise_each(funs(sum),FATALITIES,INJURIES)
+healthsum$TOTALCASUALTIES<-healthsum$FATALITIES+healthsum$INJURIES
+healthtop10<-healthsum[order(healthsum$TOTALCASUALTIES,decreasing=TRUE),][1:10,]
+
+healthtop10<-melt(healthtop10, id=c("EVTYPE"), measure.vars=c("FATALITIES", "INJURIES"))
+
+ggplot(data=healthtop10, aes(EVTYPE, value, fill=variable)) + geom_bar(stat="identity") + xlab("Event Type") + ylab("Total Casualties") + ggtitle("Health Impact by Weather Event") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+###Economic Impacts
+```{r}
+econsum<-stormhealth%>%summarise_each(funs(sum),PROPDMG2,CROPDMG2)
+econsum$TOTALDMG<-econsum$PROPDMG2+econsum$CROPDMG2
+econtop10<-econsum[order(econsum$TOTALDMG,decreasing=TRUE),][1:10,]
+
+econtop10<-melt(econtop10, id=c("EVTYPE"), measure.vars=c("PROPDMG2", "CROPDMG2"))
+
+ggplot(data=econtop10, aes(EVTYPE, value, fill=variable)) + geom_bar(stat="identity") + xlab("Event Type") + ylab("Total $m") + ggtitle("Economic Impact by Weather Event") + theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+###Summary
+So we can see that the worst impact on health is `r healthtop10[1,1]` and the worst impact on the economy is `r econtop10[1,1]`
